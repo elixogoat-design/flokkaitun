@@ -1,5 +1,5 @@
 -- main.lua
--- Orquestra carregamento, dados e live update.
+-- Ponto de entrada, carrega dados e orquestra a UI
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -7,15 +7,15 @@ local player = Players.LocalPlayer
 local UI = require(script.Parent.ui)
 local Remotes = require(script.Parent.remotes) -- reservado
 
--- Dados do jogador (simulados ou reais)
+-- Dados do jogador (simulados inicialmente)
 local playerStats = {
     Level = 1,
     Gems = 100,
     Money = 500
 }
 
--- Tenta obter dados reais da pasta "Data"
-local function tryGetRealData()
+-- Tenta carregar dados reais da pasta "Data"
+local function loadRealData()
     if not player then return false end
     local dataFolder = player:FindFirstChild("Data")
     if not dataFolder then return false end
@@ -28,23 +28,24 @@ local function tryGetRealData()
     if gemsVal  and typeof(gemsVal.Value)  == "number" then playerStats.Gems  = gemsVal.Value end
     if moneyVal and typeof(moneyVal.Value) == "number" then playerStats.Money = moneyVal.Value end
 
-    local function updateFromGame()
+    -- Conexões para atualização em tempo real
+    local function update()
         UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
     end
-    if levelVal then levelVal.Changed:Connect(function(v) playerStats.Level = v; updateFromGame() end) end
-    if gemsVal  then gemsVal.Changed:Connect(function(v) playerStats.Gems  = v; updateFromGame() end) end
-    if moneyVal then moneyVal.Changed:Connect(function(v) playerStats.Money = v; updateFromGame() end) end
-    updateFromGame()
+    if levelVal then levelVal.Changed:Connect(function(v) playerStats.Level = v; update() end) end
+    if gemsVal  then gemsVal.Changed:Connect(function(v) playerStats.Gems  = v; update() end) end
+    if moneyVal then moneyVal.Changed:Connect(function(v) playerStats.Money = v; update() end) end
+    update()
     return true
 end
 
-local hasRealData = tryGetRealData()
+local hasRealData = loadRealData()
 
 -- Constrói a UI (fullscreen)
 UI:Build()
 UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
 
--- Se não houver dados reais, simula aumento automático a cada 5s
+-- Se não houver dados reais, simula aumento automático a cada 5 segundos
 if not hasRealData then
     spawn(function()
         while true do
@@ -57,15 +58,16 @@ if not hasRealData then
     end)
 end
 
--- Inicia animação da barra de progresso
+-- Anima a barra de progresso e depois mostra a UI principal
 local progressTween = UI:StartProgressAnimation(2.5)
 if progressTween then
     progressTween.Completed:Connect(function()
         UI:FadeToMain()
     end)
 else
+    -- Fallback: espera 2.5 segundos e troca
     task.wait(2.5)
     UI:FadeToMain()
 end
 
-print("Flok Kaitun UI fullscreen carregada com ícones personalizados!")
+print("Flok Kaitun UI modular carregada com sucesso!")
