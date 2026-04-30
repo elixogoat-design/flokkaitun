@@ -1,27 +1,61 @@
--- main.lua - execução via executor (exploit)
-local UI = require(script.Parent.ui)   -- ajuste o caminho conforme necessário
-local Remotes = require(script.Parent.remotes)
+-- main.lua
+-- Script principal que orquestra o carregamento e atualiza os stats
 
-UI:Build()
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
 
--- Simulação de dados do jogador (já que você não tem acesso ao Data do jogo)
+-- Carregar módulos (assumindo que estão na mesma pasta)
+local UI = require(script.Parent.ui)
+local Remotes = require(script.Parent.remotes) -- não usado, mas disponível
+
+-- ========== DADOS DO JOGADOR (simulados ou reais) ==========
 local playerStats = {
     Level = 1,
     Gems = 100,
     Money = 500
 }
 
--- Atualiza a UI com os dados atuais
-local function updateUI()
-    UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+-- Tenta obter dados reais do jogo (se existir a pasta "Data")
+local function tryGetRealData()
+    if player then
+        local dataFolder = player:FindFirstChild("Data")
+        if dataFolder then
+            local levelVal = dataFolder:FindFirstChild("Level")
+            local gemsVal  = dataFolder:FindFirstChild("Gems")
+            local moneyVal = dataFolder:FindFirstChild("Money")
+            if levelVal and typeof(levelVal.Value) == "number" then playerStats.Level = levelVal.Value end
+            if gemsVal  and typeof(gemsVal.Value)  == "number" then playerStats.Gems  = gemsVal.Value end
+            if moneyVal and typeof(moneyVal.Value) == "number" then playerStats.Money = moneyVal.Value end
+            
+            -- Conectar para atualizações em tempo real
+            local function updateFromGame()
+                UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+            end
+            if levelVal then levelVal.Changed:Connect(function(v) playerStats.Level = v; updateFromGame() end) end
+            if gemsVal  then gemsVal.Changed:Connect(function(v) playerStats.Gems  = v; updateFromGame() end) end
+            if moneyVal then moneyVal.Changed:Connect(function(v) playerStats.Money = v; updateFromGame() end) end
+            updateFromGame()
+            return true
+        end
+    end
+    return false
 end
 
--- Opcional: simular mudanças automáticas a cada 5 segundos
--- (comente se não quiser)
-local autoChange = true
-if autoChange then
-    spawn(function()
-        while wait(5) do
+local hasRealData = tryGetRealData()
+
+-- Se não há dados reais, usamos simulação com incremento automático
+local autoIncConnection = nil
+if not hasRealData then
+    -- Atualiza a UI com os valores simulados
+    local function updateUI()
+        UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+    end
+    updateUI()
+    
+    -- Incrementa automaticamente a cada 5 segundos (exemplo)
+    autoIncConnection = game:GetService("RunService").Stepped:Connect(function()
+        -- a cada 5 segundos (aproximado)
+        if tick() % 5 < 0.1 then
             playerStats.Level = playerStats.Level + 1
             playerStats.Gems = playerStats.Gems + 50
             playerStats.Money = playerStats.Money + 200
@@ -30,19 +64,28 @@ if autoChange then
     end)
 end
 
--- Inicia loading e transição
-local progressTween = UI:StartProgressAnimation(2.5)
-updateUI()
+-- ========== CONSTRUIR E INICIAR A UI ==========
+UI:Build()
 
-local function finish()
+-- Animar barra de progresso
+local progressTween = UI:StartProgressAnimation(2.5) -- 2.5 segundos
+
+-- Ao terminar a animação, fazer o fade para a UI principal
+if progressTween then
+    progressTween.Completed:Connect(function()
+        UI:FadeToMain()
+    end)
+else
+    -- Fallback
+    task.wait(2.5)
     UI:FadeToMain()
 end
 
-if progressTween then
-    progressTween.Completed:Connect(finish)
-else
-    task.wait(2.5)
-    finish()
-end
+-- Limpeza quando o script for interrompido (opcional)
+game:GetService("Players").LocalPlayer:GetPropertyChangedSignal("Parent"):Connect(function()
+    if not player.Parent then
+        if autoIncConnection then autoIncConnection:Disconnect() end
+    end
+end)
 
-print("Flok Kaitun carregado para executor!")
+print("Flok Kaitun UI carregada com sucesso!")
