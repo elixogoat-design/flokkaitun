@@ -1,73 +1,69 @@
 -- main.lua
--- Ponto de entrada, carrega dados e orquestra a UI
+-- Ponto de entrada: carrega e coordena a UI, gerencia os dados do jogador.
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
+-- Carrega os módulos (mesmo diretório)
 local UI = require(script.Parent.ui)
-local Remotes = require(script.Parent.remotes) -- reservado
+local Remotes = require(script.Parent.remotes)  -- opcional, pode remover se não existir
 
--- Dados do jogador (simulados inicialmente)
-local playerStats = {
-    Level = 1,
-    Gems = 100,
-    Money = 500
-}
+-- Dados iniciais (simulação)
+local stats = { Level = 1, Gems = 100, Money = 500 }
 
--- Tenta carregar dados reais da pasta "Data"
+-- Tenta obter dados reais da pasta "Data" do jogador
 local function loadRealData()
     if not player then return false end
-    local dataFolder = player:FindFirstChild("Data")
-    if not dataFolder then return false end
+    local data = player:FindFirstChild("Data")
+    if not data then return false end
 
-    local levelVal = dataFolder:FindFirstChild("Level")
-    local gemsVal  = dataFolder:FindFirstChild("Gems")
-    local moneyVal = dataFolder:FindFirstChild("Money")
+    local lvl = data:FindFirstChild("Level")
+    local gem = data:FindFirstChild("Gems")
+    local mon = data:FindFirstChild("Money")
 
-    if levelVal and typeof(levelVal.Value) == "number" then playerStats.Level = levelVal.Value end
-    if gemsVal  and typeof(gemsVal.Value)  == "number" then playerStats.Gems  = gemsVal.Value end
-    if moneyVal and typeof(moneyVal.Value) == "number" then playerStats.Money = moneyVal.Value end
+    if lvl and typeof(lvl.Value) == "number" then stats.Level = lvl.Value end
+    if gem and typeof(gem.Value) == "number" then stats.Gems  = gem.Value end
+    if mon and typeof(mon.Value) == "number" then stats.Money = mon.Value end
 
-    -- Conexões para atualização em tempo real
-    local function update()
-        UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+    local function updateAll()
+        UI:UpdateStats(stats.Level, stats.Gems, stats.Money)
     end
-    if levelVal then levelVal.Changed:Connect(function(v) playerStats.Level = v; update() end) end
-    if gemsVal  then gemsVal.Changed:Connect(function(v) playerStats.Gems  = v; update() end) end
-    if moneyVal then moneyVal.Changed:Connect(function(v) playerStats.Money = v; update() end) end
-    update()
+
+    if lvl then lvl.Changed:Connect(function(v) stats.Level = v; updateAll() end) end
+    if gem then gem.Changed:Connect(function(v) stats.Gems  = v; updateAll() end) end
+    if mon then mon.Changed:Connect(function(v) stats.Money = v; updateAll() end) end
+    updateAll()
     return true
 end
 
-local hasRealData = loadRealData()
+local realDataExists = loadRealData()
 
--- Constrói a UI (fullscreen)
+-- Constrói a GUI
 UI:Build()
-UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+UI:UpdateStats(stats.Level, stats.Gems, stats.Money)
 
--- Se não houver dados reais, simula aumento automático a cada 5 segundos
-if not hasRealData then
+-- Se não há dados reais, simula incremento a cada 5 segundos
+if not realDataExists then
     spawn(function()
         while true do
             task.wait(5)
-            playerStats.Level = playerStats.Level + 1
-            playerStats.Gems  = playerStats.Gems + 50
-            playerStats.Money = playerStats.Money + 200
-            UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
+            stats.Level = stats.Level + 1
+            stats.Gems  = stats.Gems + 50
+            stats.Money = stats.Money + 200
+            UI:UpdateStats(stats.Level, stats.Gems, stats.Money)
         end
     end)
 end
 
--- Anima a barra de progresso e depois mostra a UI principal
-local progressTween = UI:StartProgressAnimation(2.5)
-if progressTween then
-    progressTween.Completed:Connect(function()
+-- Animação de loading e transição
+local progress = UI:StartProgressAnimation(2.5)
+if progress then
+    progress.Completed:Connect(function()
         UI:FadeToMain()
     end)
 else
-    -- Fallback: espera 2.5 segundos e troca
     task.wait(2.5)
     UI:FadeToMain()
 end
 
-print("Flok Kaitun UI modular carregada com sucesso!")
+print("Flok Kaitun UI carregada com sucesso!")
