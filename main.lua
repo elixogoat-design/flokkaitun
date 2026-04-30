@@ -1,118 +1,85 @@
 --[[
-	Flok Kaitun - Main Controller
-	Handles logic, data updates, and transitions
+    Arquivo: main.lua
+    Responsabilidade: Orquestrar o fluxo de inicialização,
+    buscar os dados do jogador, manter as estatísticas atualizadas
+    em tempo real e executar a transição da tela de loading.
 ]]
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+-- Carrega os módulos
+local UI = require(script.Parent.Modules.ui)
+local Remotes = require(script.Parent.Modules.remotes) -- reservado
 
--- Require our modules
-local UI = require(script.Parent.ui)
-local Remotes = require(script.Parent.remotes)
-
-local FlokKaitun = {}
-
--- Data tracking
-local currentData = {
-	Level = nil,
-	Gems = nil,
-	Money = nil
-}
-
--- Update interval (prevents excessive updates)
-local UPDATE_THROTTLE = 0.1
-local lastUpdate = 0
-
---[[
-	Fetches current player data safely
-]]
-local function getPlayerData()
-	local success, data = pcall(function()
-		return LocalPlayer:WaitForChild("Data", 5)
-	end)
-	
-	if success and data then
-		return {
-			Level = data:FindFirstChild("Level") and data.Level.Value or 0,
-			Gems = data:FindFirstChild("Gems") and data.Gems.Value or 0,
-			Money = data:FindFirstChild("Money") and data.Money.Value or 0
-		}
-	end
-	
-	return nil
+local player = Players.LocalPlayer
+if not player then
+    player = Players:WaitForChild("LocalPlayer")
 end
 
---[[
-	Updates UI with current data
-]]
-local function updateUI()
-	local data = getPlayerData()
-	if not data then return end
-	
-	-- Check if values actually changed to avoid unnecessary updates
-	if data.Level ~= currentData.Level then
-		UI.updateStat("Level", data.Level)
-		currentData.Level = data.Level
-	end
-	
-	if data.Gems ~= currentData.Gems then
-		UI.updateStat("Gems", data.Gems)
-		currentData.Gems = data.Gems
-	end
-	
-	if data.Money ~= currentData.Money then
-		UI.updateStat("Money", data.Money)
-		currentData.Money = data.Money
-	end
+-- Constrói toda a interface (já fica invisível até o final)
+UI:Build()
+
+-- Aguarda a pasta de dados do jogador
+local dataFolder = player:WaitForChild("Data")
+local levelValue = dataFolder:WaitForChild("Level")
+local gemsValue  = dataFolder:WaitForChild("Gems")
+local moneyValue = dataFolder:WaitForChild("Money")
+
+-- Atualiza todos os valores na UI
+local function updateAllStats()
+    UI:UpdateStats(levelValue.Value, gemsValue.Value, moneyValue.Value)
 end
 
---[[
-	Heartbeat loop for real-time updates (optimized)
-]]
-local function startDataLoop()
-	RunService.Heartbeat:Connect(function(deltaTime)
-		lastUpdate += deltaTime
-		if lastUpdate >= UPDATE_THROTTLE then
-			lastUpdate = 0
-			updateUI()
-		end
-	end)
+-- Conecta eventos para atualização automática (live)
+local levelConn = levelValue.Changed:Connect(updateAllStats)
+local gemsConn  = gemsValue.Changed:Connect(updateAllStats)
+local moneyConn = moneyValue.Changed:Connect(updateAllStats)
+
+-- Exibe os valores iniciais
+updateAllStats()
+
+-- ==============================
+-- SEQUÊNCIA DE LOADING
+-- ==============================
+local LOADING_DURATION = 2.5  -- segundos
+
+-- Inicia a animação da barra de progresso
+local progressTween = UI:StartProgressAnimation(LOADING_DURATION)
+
+-- Pequeno delay adicional por segurança (caso os dados demorem)
+-- mas como já temos os dados, apenas aguarda o fim da barra.
+local function finishLoading()
+    UI:FadeToMain()
+    
+    -- Pequena limpeza (opcional)
+    task.delay(1, function()
+        -- Desconecta o tween se ainda existir (garantia)
+        if progressTween and progressTween.Completed then
+            progressTween:Cancel()
+        end
+    end)
 end
 
---[[
-	Main initialization sequence
-]]
-function FlokKaitun.init()
-	-- Create UI elements
-	UI.createLoadingScreen()
-	
-	-- Simulate loading with smooth transition
-	task.wait(1) -- Brief initial delay
-	
-	-- Start loading animation
-	UI.startLoading()
-	
-	-- Simulate asset loading time
-	task.wait(3) -- Adjust based on your needs
-	
-	-- Transition from loading to main UI
-	UI.fadeOutLoading(function()
-		-- Create main UI after loading fades
-		UI.createMainUI()
-		
-		-- Fade in main UI
-		UI.fadeInMain(function()
-			-- Initial data update
-			updateUI()
-			
-			-- Start real-time updates
-			startDataLoop()
-		end)
-	end)
-end
+-- Quando a barra terminar, faz a transição
+progressTween.Completed:Connect(finishLoading)
 
-return FlokKaitun
+-- Fallback de segurança: se por algum motivo a barra travar, força após X segundos
+task.delay(LOADING_DURATION + 0.5, function()
+    if UI.loadingCanvas and UI.loadingCanvas.Visible ~= false then
+        warn("Forçando transição por segurança.")
+        finishLoading()
+    end
+end)
+
+-- Limpeza das conexões caso o jogador saia
+player.AncestryChanged:Connect(function()
+    if not player.Parent then
+        levelConn:Disconnect()
+        gemsConn:Disconnect()
+        moneyConn:Disconnect()
+        if progressTween then progressTween:Cancel() end
+    end
+end)
+
+print("Flok Kaitun UI inicializado com sucesso!")
