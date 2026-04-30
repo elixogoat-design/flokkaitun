@@ -1,412 +1,309 @@
-
 --[[
-	Flok Kaitun - UI Generator
-	Handles all UI creation, styling, and animations
+    Arquivo: ui.lua
+    Responsabilidade: Criar e manipular todos os elementos visuais da interface.
+    Gerencia tela de carregamento, UI principal, animações e atualização de estatísticas.
 ]]
 
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
-
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local UI = {}
-local uiObjects = {}
 
--- Constants for styling
-local COLORS = {
-	Background = Color3.fromRGB(25, 25, 35),
-	Accent = Color3.fromRGB(100, 150, 255),
-	AccentDark = Color3.fromRGB(70, 120, 220),
-	Text = Color3.fromRGB(255, 255, 255),
-	TextSecondary = Color3.fromRGB(180, 180, 200),
-	Card = Color3.fromRGB(35, 35, 50),
-	LoadingBar = Color3.fromRGB(100, 150, 255)
+-- Tema visual (cores modernas e arredondadas)
+local THEME = {
+    Background = Color3.fromRGB(18, 20, 24),
+    Card       = Color3.fromRGB(28, 30, 36),
+    Accent     = Color3.fromRGB(100, 108, 255),
+    Text       = Color3.fromRGB(240, 242, 245),
+    TextDim    = Color3.fromRGB(160, 165, 175),
+    Progress   = Color3.fromRGB(100, 108, 255),
+    Success    = Color3.fromRGB(76, 175, 80)
 }
 
-local FONTS = {
-	Title = Enum.Font.GothamBold,
-	Body = Enum.Font.GothamSemibold,
-	Mono = Enum.Font.Gotham
-}
+-- Cria a ScreenGui e todos os containers
+function UI:Build()
+    local player = Players.LocalPlayer
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "FlokKaitunUI"
+    gui.IgnoreGuiInset = true   -- ignora a área segura (notch)
+    gui.ResetOnSpawn = false
+    gui.Parent = player:WaitForChild("PlayerGui")
 
--- Helper function to create rounded corners
-local function applyRoundedCorners(instance, radius)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, radius)
-	corner.Parent = instance
-	return corner
+    -- Container da tela de loading (CanvasGroup permite fade suave)
+    local loadingCanvas = Instance.new("CanvasGroup")
+    loadingCanvas.Name = "LoadingCanvas"
+    loadingCanvas.GroupTransparency = 0
+    loadingCanvas.Size = UDim2.new(1, 0, 1, 0)
+    loadingCanvas.BackgroundTransparency = 1
+    loadingCanvas.Parent = gui
+
+    -- Container da UI principal (inicialmente invisível)
+    local mainCanvas = Instance.new("CanvasGroup")
+    mainCanvas.Name = "MainCanvas"
+    mainCanvas.GroupTransparency = 1
+    mainCanvas.Size = UDim2.new(1, 0, 1, 0)
+    mainCanvas.BackgroundTransparency = 1
+    mainCanvas.Parent = gui
+
+    -- Constrói os elementos internos
+    self:BuildLoadingScreen(loadingCanvas)
+    self:BuildMainUI(mainCanvas)
+
+    -- Armazena referências
+    self.loadingCanvas = loadingCanvas
+    self.mainCanvas = mainCanvas
+    self.gui = gui
+
+    -- Referências dos labels que exibem os stats
+    self.levelLabel = nil
+    self.gemsLabel  = nil
+    self.moneyLabel = nil
+    self.progressFill = nil
 end
 
--- Helper function to create strokes
-local function applyStroke(instance, color, thickness)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = color
-	stroke.Thickness = thickness
-	stroke.Transparency = 0.7
-	stroke.Parent = instance
-	return stroke
+-- Tela de carregamento elegante com barra de progresso
+function UI:BuildLoadingScreen(parent)
+    local centerFrame = Instance.new("Frame")
+    centerFrame.Name = "CenterFrame"
+    centerFrame.Size = UDim2.new(0, 420, 0, 220)
+    centerFrame.Position = UDim2.new(0.5, -210, 0.5, -110)
+    centerFrame.BackgroundColor3 = THEME.Card
+    centerFrame.BackgroundTransparency = 0
+    centerFrame.BorderSizePixel = 0
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 16)
+    corner.Parent = centerFrame
+
+    -- Sombra sutil
+    local shadow = Instance.new("UIShadow")
+    shadow.Parent = centerFrame
+
+    centerFrame.Parent = parent
+
+    -- Título
+    local title = Instance.new("TextLabel")
+    title.Text = "Flok Kaitun Loading..."
+    title.TextColor3 = THEME.Text
+    title.TextSize = 26
+    title.Font = Enum.Font.GothamBold
+    title.Size = UDim2.new(1, -40, 0, 50)
+    title.Position = UDim2.new(0, 20, 0, 20)
+    title.BackgroundTransparency = 1
+    title.TextXAlignment = Enum.TextXAlignment.Center
+    title.Parent = centerFrame
+
+    -- Fundo da barra de progresso
+    local progressBg = Instance.new("Frame")
+    progressBg.Size = UDim2.new(0.8, 0, 0, 10)
+    progressBg.Position = UDim2.new(0.1, 0, 0.7, 0)
+    progressBg.BackgroundColor3 = Color3.fromRGB(45, 47, 52)
+    progressBg.BorderSizePixel = 0
+
+    local bgCorner = Instance.new("UICorner")
+    bgCorner.CornerRadius = UDim.new(1, 0)
+    bgCorner.Parent = progressBg
+    progressBg.Parent = centerFrame
+
+    -- Barra de progresso animada
+    local progressFill = Instance.new("Frame")
+    progressFill.Size = UDim2.new(0, 0, 1, 0)
+    progressFill.BackgroundColor3 = THEME.Progress
+    progressFill.BorderSizePixel = 0
+
+    local fillCorner = Instance.new("UICorner")
+    fillCorner.CornerRadius = UDim.new(1, 0)
+    fillCorner.Parent = progressFill
+    progressFill.Parent = progressBg
+
+    -- Texto percentual opcional (estético)
+    local percentText = Instance.new("TextLabel")
+    percentText.Name = "PercentText"
+    percentText.Text = "0%"
+    percentText.TextColor3 = THEME.TextDim
+    percentText.TextSize = 14
+    percentText.Font = Enum.Font.Gotham
+    percentText.Size = UDim2.new(1, 0, 0, 20)
+    percentText.Position = UDim2.new(0, 0, 0.85, 0)
+    percentText.BackgroundTransparency = 1
+    percentText.TextXAlignment = Enum.TextXAlignment.Center
+    percentText.Parent = centerFrame
+
+    self.progressFill = progressFill
+    self.percentText = percentText
 end
 
---[[
-	Creates the loading screen
-]]
-function UI.createLoadingScreen()
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "FlokKaitun_Loading"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = PlayerGui
-	
-	-- Main container
-	local container = Instance.new("Frame")
-	container.Name = "LoadingContainer"
-	container.Size = UDim2.new(1, 0, 1, 0)
-	container.BackgroundColor3 = COLORS.Background
-	container.BackgroundTransparency = 0
-	container.BorderSizePixel = 0
-	container.Parent = screenGui
-	
-	-- Center content
-	local content = Instance.new("Frame")
-	content.Name = "Content"
-	content.Size = UDim2.new(0, 400, 0, 200)
-	content.Position = UDim2.new(0.5, -200, 0.5, -100)
-	content.BackgroundTransparency = 1
-	content.BorderSizePixel = 0
-	content.Parent = container
-	
-	-- Title
-	local title = Instance.new("TextLabel")
-	title.Name = "Title"
-	title.Size = UDim2.new(1, 0, 0, 40)
-	title.Position = UDim2.new(0, 0, 0, 0)
-	title.BackgroundTransparency = 1
-	title.Text = "FLOK KAITUN"
-	title.TextColor3 = COLORS.Text
-	title.TextSize = 32
-	title.Font = FONTS.Title
-	title.TextTransparency = 0
-	title.Parent = content
-	
-	-- Subtitle
-	local subtitle = Instance.new("TextLabel")
-	subtitle.Name = "Subtitle"
-	subtitle.Size = UDim2.new(1, 0, 0, 25)
-	subtitle.Position = UDim2.new(0, 0, 0, 45)
-	subtitle.BackgroundTransparency = 1
-	subtitle.Text = "Loading..."
-	subtitle.TextColor3 = COLORS.TextSecondary
-	subtitle.TextSize = 18
-	subtitle.Font = FONTS.Body
-	subtitle.TextTransparency = 0
-	subtitle.Parent = content
-	
-	-- Progress bar background
-	local barBg = Instance.new("Frame")
-	barBg.Name = "ProgressBg"
-	barBg.Size = UDim2.new(1, -20, 0, 6)
-	barBg.Position = UDim2.new(0, 10, 0, 90)
-	barBg.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
-	barBg.BorderSizePixel = 0
-	barBg.Parent = content
-	applyRoundedCorners(barBg, 3)
-	
-	-- Progress bar fill
-	local barFill = Instance.new("Frame")
-	barFill.Name = "ProgressFill"
-	barFill.Size = UDim2.new(0, 0, 1, 0)
-	barFill.BackgroundColor3 = COLORS.LoadingBar
-	barFill.BorderSizePixel = 0
-	barFill.Parent = barBg
-	applyRoundedCorners(barFill, 3)
-	
-	-- Gradient on progress bar for style
-	local gradient = Instance.new("UIGradient")
-	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, COLORS.Accent),
-		ColorSequenceKeypoint.new(1, COLORS.AccentDark)
-	})
-	gradient.Parent = barFill
-	
-	-- Store objects for later use
-	uiObjects.LoadingGui = screenGui
-	uiObjects.LoadingContainer = container
-	uiObjects.ProgressFill = barFill
-	uiObjects.LoadingText = subtitle
+-- UI principal com estatísticas do jogador
+function UI:BuildMainUI(parent)
+    -- Card central
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(0, 400, 0, 320)
+    card.Position = UDim2.new(0.5, -200, 0.5, -160)
+    card.BackgroundColor3 = THEME.Card
+    card.BackgroundTransparency = 0
+    card.BorderSizePixel = 0
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 20)
+    corner.Parent = card
+
+    local shadow = Instance.new("UIShadow")
+    shadow.Parent = card
+
+    card.Parent = parent
+
+    -- Título principal
+    local title = Instance.new("TextLabel")
+    title.Text = "Flok Kaitun"
+    title.TextColor3 = THEME.Text
+    title.TextSize = 32
+    title.Font = Enum.Font.GothamBold
+    title.Size = UDim2.new(1, 0, 0, 70)
+    title.Position = UDim2.new(0, 0, 0, 0)
+    title.BackgroundTransparency = 1
+    title.Parent = card
+
+    -- Linha separadora
+    local line = Instance.new("Frame")
+    line.Size = UDim2.new(0.9, 0, 0, 2)
+    line.Position = UDim2.new(0.05, 0, 0, 70)
+    line.BackgroundColor3 = THEME.Accent
+    line.BorderSizePixel = 0
+    local lineCorner = Instance.new("UICorner")
+    lineCorner.CornerRadius = UDim.new(1, 0)
+    lineCorner.Parent = line
+    line.Parent = card
+
+    -- Container das estatísticas
+    local statsContainer = Instance.new("Frame")
+    statsContainer.Size = UDim2.new(1, -40, 0, 160)
+    statsContainer.Position = UDim2.new(0, 20, 0, 90)
+    statsContainer.BackgroundTransparency = 1
+    statsContainer.Parent = card
+
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 20)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.VerticalAlignment = Enum.VerticalAlignment.Top
+    layout.Parent = statsContainer
+
+    -- Função auxiliar para criar uma linha de estatística
+    local function createStatRow(icon, labelText, initialValue)
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 50)
+        row.BackgroundTransparency = 1
+        row.Parent = statsContainer
+
+        -- Ícone
+        local iconLabel = Instance.new("TextLabel")
+        iconLabel.Text = icon
+        iconLabel.TextColor3 = THEME.Accent
+        iconLabel.TextSize = 32
+        iconLabel.Font = Enum.Font.GothamBold
+        iconLabel.Size = UDim2.new(0, 50, 1, 0)
+        iconLabel.BackgroundTransparency = 1
+        iconLabel.TextXAlignment = Enum.TextXAlignment.Left
+        iconLabel.Parent = row
+
+        -- Texto descritivo
+        local descLabel = Instance.new("TextLabel")
+        descLabel.Text = labelText .. ":"
+        descLabel.TextColor3 = THEME.TextDim
+        descLabel.TextSize = 20
+        descLabel.Font = Enum.Font.Gotham
+        descLabel.Size = UDim2.new(0, 100, 1, 0)
+        descLabel.Position = UDim2.new(0, 55, 0, 0)
+        descLabel.BackgroundTransparency = 1
+        descLabel.TextXAlignment = Enum.TextXAlignment.Left
+        descLabel.Parent = row
+
+        -- Valor dinâmico
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Text = tostring(initialValue)
+        valueLabel.TextColor3 = THEME.Text
+        valueLabel.TextSize = 24
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.Size = UDim2.new(1, -170, 1, 0)
+        valueLabel.Position = UDim2.new(0, 160, 0, 0)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+        valueLabel.Parent = row
+
+        return valueLabel
+    end
+
+    -- Criar as linhas e guardar referências
+    self.levelLabel = createStatRow("📊", "Level", 0)
+    self.gemsLabel  = createStatRow("💎", "Gems", 0)
+    self.moneyLabel = createStatRow("💰", "Money", 0)
+
+    -- Rodapé decorativo
+    local footer = Instance.new("TextLabel")
+    footer.Text = "© Flok Kaitun System"
+    footer.TextColor3 = THEME.TextDim
+    footer.TextSize = 12
+    footer.Font = Enum.Font.Gotham
+    footer.Size = UDim2.new(1, 0, 0, 30)
+    footer.Position = UDim2.new(0, 0, 1, -30)
+    footer.BackgroundTransparency = 1
+    footer.TextXAlignment = Enum.TextXAlignment.Center
+    footer.Parent = card
 end
 
---[[
-	Starts loading animation
-]]
-function UI.startLoading()
-	local barFill = uiObjects.ProgressFill
-	if not barFill then return end
-	
-	-- Animate progress bar
-	local tweenInfo = TweenInfo.new(2.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(barFill, tweenInfo, {Size = UDim2.new(1, 0, 1, 0)})
-	tween:Play()
-	
-	-- Update loading text with dots animation
-	local dots = 0
-	local textLabel = uiObjects.LoadingText
-	
-	task.spawn(function()
-		while textLabel and textLabel.Parent do
-			dots = (dots % 3) + 1
-			textLabel.Text = "Loading" .. string.rep(".", dots)
-			task.wait(0.5)
-		end
-	end)
+-- Atualiza os valores exibidos na UI
+function UI:UpdateStats(level, gems, money)
+    if self.levelLabel then self.levelLabel.Text = tostring(level) end
+    if self.gemsLabel  then self.gemsLabel.Text  = tostring(gems)  end
+    if self.moneyLabel then self.moneyLabel.Text = tostring(money) end
 end
 
---[[
-	Fades out loading screen
-]]
-function UI.fadeOutLoading(callback)
-	local container = uiObjects.LoadingContainer
-	if not container then
-		if callback then callback() end
-		return
-	end
-	
-	local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local tween = TweenService:Create(container, tweenInfo, {BackgroundTransparency = 1})
-	
-	-- Fade all children
-	for _, child in ipairs(container:GetDescendants()) do
-		if child:IsA("TextLabel") or child:IsA("ImageLabel") then
-			local textTween = TweenService:Create(child, tweenInfo, {TextTransparency = 1})
-			textTween:Play()
-		elseif child:IsA("Frame") and child.Name ~= "ProgressBg" then
-			local frameTween = TweenService:Create(child, tweenInfo, {BackgroundTransparency = 1})
-			frameTween:Play()
-		end
-	end
-	
-	tween:Play()
-	tween.Completed:Connect(function()
-		if uiObjects.LoadingGui then
-			uiObjects.LoadingGui:Destroy()
-			uiObjects.LoadingGui = nil
-		end
-		if callback then callback() end
-	end)
+-- Anima a barra de progresso e o texto percentual
+function UI:StartProgressAnimation(duration)
+    local startTime = tick()
+    local fill = self.progressFill
+    local percentText = self.percentText
+
+    -- Tween da barra
+    local targetSize = UDim2.new(1, 0, 1, 0)
+    local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(fill, tweenInfo, {Size = targetSize})
+    tween:Play()
+
+    -- Atualiza o percentual a cada frame (suave)
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not fill or not fill.Parent then
+            if connection then connection:Disconnect() end
+            return
+        end
+        local elapsed = tick() - startTime
+        local percent = math.min(1, elapsed / duration) * 100
+        if percentText then
+            percentText.Text = string.format("%.0f%%", percent)
+        end
+        if elapsed >= duration then
+            if connection then connection:Disconnect() end
+            if percentText then percentText.Text = "100%" end
+        end
+    end)
+
+    return tween
 end
 
---[[
-	Creates the main UI
-]]
-function UI.createMainUI()
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = "FlokKaitun_Main"
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = PlayerGui
-	
-	-- Main container (initially transparent for fade in)
-	local mainFrame = Instance.new("Frame")
-	mainFrame.Name = "MainFrame"
-	mainFrame.Size = UDim2.new(0, 350, 0, 250)
-	mainFrame.Position = UDim2.new(0, 20, 0.5, -125)
-	mainFrame.BackgroundColor3 = COLORS.Background
-	mainFrame.BackgroundTransparency = 1 -- Start transparent
-	mainFrame.BorderSizePixel = 0
-	mainFrame.Parent = screenGui
-	applyRoundedCorners(mainFrame, 12)
-	applyStroke(mainFrame, COLORS.Accent, 1.5)
-	
-	-- Title bar
-	local titleBar = Instance.new("Frame")
-	titleBar.Name = "TitleBar"
-	titleBar.Size = UDim2.new(1, 0, 0, 50)
-	titleBar.BackgroundColor3 = COLORS.AccentDark
-	titleBar.BackgroundTransparency = 1
-	titleBar.BorderSizePixel = 0
-	titleBar.Parent = mainFrame
-	applyRoundedCorners(titleBar, 12)
-	
-	local titleText = Instance.new("TextLabel")
-	titleText.Name = "Title"
-	titleText.Size = UDim2.new(1, -20, 1, 0)
-	titleText.Position = UDim2.new(0, 10, 0, 0)
-	titleText.BackgroundTransparency = 1
-	titleText.Text = "FLOK KAITUN"
-	titleText.TextColor3 = COLORS.Text
-	titleText.TextSize = 22
-	titleText.Font = FONTS.Title
-	titleText.TextTransparency = 1
-	titleText.TextXAlignment = Enum.TextXAlignment.Left
-	titleText.Parent = titleBar
-	
-	-- Stats container
-	local statsContainer = Instance.new("Frame")
-	statsContainer.Name = "StatsContainer"
-	statsContainer.Size = UDim2.new(1, -30, 0, 170)
-	statsContainer.Position = UDim2.new(0, 15, 0, 65)
-	statsContainer.BackgroundTransparency = 1
-	statsContainer.Parent = mainFrame
-	
-	-- Create stat cards
-	local stats = {
-		{Name = "Level", Icon = "⭐", Color = Color3.fromRGB(255, 200, 50)},
-		{Name = "Gems", Icon = "💎", Color = Color3.fromRGB(100, 200, 255)},
-		{Name = "Money", Icon = "💰", Color = Color3.fromRGB(100, 255, 100)}
-	}
-	
-	local statCards = {}
-	
-	for i, stat in ipairs(stats) do
-		local yPos = (i - 1) * 58
-		
-		-- Card background
-		local card = Instance.new("Frame")
-		card.Name = stat.Name .. "Card"
-		card.Size = UDim2.new(1, 0, 0, 50)
-		card.Position = UDim2.new(0, 0, 0, yPos)
-		card.BackgroundColor3 = COLORS.Card
-		card.BackgroundTransparency = 1
-		card.BorderSizePixel = 0
-		card.Parent = statsContainer
-		applyRoundedCorners(card, 8)
-		
-		-- Icon
-		local icon = Instance.new("TextLabel")
-		icon.Name = "Icon"
-		icon.Size = UDim2.new(0, 40, 0, 40)
-		icon.Position = UDim2.new(0, 10, 0.5, -20)
-		icon.BackgroundTransparency = 1
-		icon.Text = stat.Icon
-		icon.TextSize = 24
-		icon.TextTransparency = 1
-		icon.Parent = card
-		
-		-- Stat name
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Name = "Name"
-		nameLabel.Size = UDim2.new(0, 100, 0, 25)
-		nameLabel.Position = UDim2.new(0, 60, 0, 5)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.Text = stat.Name
-		nameLabel.TextColor3 = COLORS.TextSecondary
-		nameLabel.TextSize = 14
-		nameLabel.Font = FONTS.Mono
-		nameLabel.TextTransparency = 1
-		nameLabel.TextXAlignment = Enum.TextXAlignment.Left
-		nameLabel.Parent = card
-		
-		-- Stat value
-		local valueLabel = Instance.new("TextLabel")
-		valueLabel.Name = "Value"
-		valueLabel.Size = UDim2.new(1, -70, 0, 30)
-		valueLabel.Position = UDim2.new(0, 60, 0, 20)
-		valueLabel.BackgroundTransparency = 1
-		valueLabel.Text = "0"
-		valueLabel.TextColor3 = stat.Color
-		valueLabel.TextSize = 20
-		valueLabel.Font = FONTS.Title
-		valueLabel.TextTransparency = 1
-		valueLabel.TextXAlignment = Enum.TextXAlignment.Left
-		valueLabel.Parent = card
-		
-		statCards[stat.Name] = {
-			Card = card,
-			Icon = icon,
-			Name = nameLabel,
-			Value = valueLabel
-		}
-	end
-	
-	-- Store references
-	uiObjects.MainGui = screenGui
-	uiObjects.MainFrame = mainFrame
-	uiObjects.TitleBar = titleBar
-	uiObjects.TitleText = titleText
-	uiObjects.StatCards = statCards
-end
+-- Transição fade-out do loading e fade-in da UI principal
+function UI:FadeToMain()
+    local fadeOut = TweenService:Create(self.loadingCanvas, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {GroupTransparency = 1})
+    local fadeIn  = TweenService:Create(self.mainCanvas,  TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {GroupTransparency = 0})
 
---[[
-	Fades in main UI
-]]
-function UI.fadeInMain(callback)
-	local mainFrame = uiObjects.MainFrame
-	if not mainFrame then return end
-	
-	-- Fade in main frame
-	local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	local frameTween = TweenService:Create(mainFrame, tweenInfo, {BackgroundTransparency = 0})
-	frameTween:Play()
-	
-	-- Fade in title bar
-	local titleBarTween = TweenService:Create(uiObjects.TitleBar, tweenInfo, {BackgroundTransparency = 0})
-	titleBarTween:Play()
-	
-	-- Fade in all text elements with stagger
-	local delay = 0
-	for _, cardData in pairs(uiObjects.StatCards) do
-		delay += 0.1
-		
-		task.delay(delay, function()
-			if cardData.Card and cardData.Card.Parent then
-				local cardTween = TweenService:Create(cardData.Card, tweenInfo, {BackgroundTransparency = 0})
-				cardTween:Play()
-				
-				for _, element in ipairs({cardData.Icon, cardData.Name, cardData.Value}) do
-					if element and element.Parent then
-						local textTween = TweenService:Create(element, tweenInfo, {TextTransparency = 0})
-						textTween:Play()
-					end
-				end
-			end
-		end)
-	end
-	
-	-- Fade in title text
-	task.delay(delay + 0.1, function()
-		local titleTween = TweenService:Create(uiObjects.TitleText, tweenInfo, {TextTransparency = 0})
-		titleTween:Play()
-		
-		if callback then
-			task.delay(0.6, callback)
-		end
-	end)
-end
+    fadeOut:Play()
+    fadeIn:Play()
 
---[[
-	Updates a specific stat value with animation
-]]
-function UI.updateStat(statName, value)
-	local cardData = uiObjects.StatCards and uiObjects.StatCards[statName]
-	if not cardData then return end
-	
-	local valueLabel = cardData.Value
-	if not valueLabel or not valueLabel.Parent then return end
-	
-	-- Format value based on type
-	local formattedValue = tostring(value)
-	if statName == "Money" or statName == "Gems" then
-		-- Format large numbers with commas
-		formattedValue = tostring(math.floor(value)):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-	end
-	
-	-- Scale animation for feedback
-	local scaleTweenInfo = TweenInfo.new(0.15, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	local scaleUp = TweenService:Create(valueLabel, scaleTweenInfo, {TextSize = 24})
-	local scaleDown = TweenService:Create(valueLabel, scaleTweenInfo, {TextSize = 20})
-	
-	scaleUp:Play()
-	scaleUp.Completed:Connect(function()
-		valueLabel.Text = formattedValue
-		scaleDown:Play()
-	end)
-	
-	-- If value hasn't changed, just update text
-	if valueLabel.Text == formattedValue then
-		scaleUp:Cancel()
-		scaleDown:Cancel()
-		valueLabel.Text = formattedValue
-	end
+    fadeOut.Completed:Connect(function()
+        self.loadingCanvas.Visible = false
+        self.loadingCanvas:Destroy() -- libera memória
+    end)
 end
 
 return UI
