@@ -1,33 +1,15 @@
 --[[
-	Flok Kaitun - Remotes Handler
-	Prepared for future remote event/function usage
+    Arquivo: remotes.lua
+    Uso: Preparado para futuras comunicações com o servidor.
+    Atualmente não é necessário, mas mantido por escalabilidade.
 ]]
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local remotes = {}
 
-local Remotes = {}
+-- Exemplo de como criar um RemoteEvent (se precisar no futuro)
+-- local myRemote = Instance.new("RemoteEvent")
+-- myRemote.Name = "MyRemote"
+-- myRemote.Parent = script
+-- remotes.myRemote = myRemote
 
--- Remote references (modify paths as needed)
-Remotes.Event = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("FlokKaitunEvent")
-Remotes.Function = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("FlokKaitunFunction")
-
---[[
-	Example: Send data request to server
-]]
-function Remotes.requestData()
-	if Remotes.Function then
-		return Remotes.Function:InvokeServer("GetData")
-	end
-	return nil
-end
-
---[[
-	Example: Listen for server updates
-]]
-function Remotes.onDataUpdate(callback)
-	if Remotes.Event then
-		Remotes.Event.OnClientEvent:Connect(callback)
-	end
-end
-
-return Remotes
+return remotes
