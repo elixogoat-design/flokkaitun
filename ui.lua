@@ -12,9 +12,9 @@ local player = Players.LocalPlayer
 -- ========== CONFIGURAÇÕES ==========
 local LOADING_DURATION = 2.5
 local ICONS = {
-    Level = "rbxassetid://121308741910400",
+    Level = "rbxassetid://122355989402740",
     Gems  = "rbxassetid://119885288633197",
-    Money = "rbxassetid://102739438416112",
+    Money = "rbxassetid://119885288633197",
 }
 
 -- ========== DADOS DO JOGADOR ==========
