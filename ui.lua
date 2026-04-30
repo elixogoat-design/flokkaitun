@@ -1,5 +1,6 @@
+
 -- ui.lua
--- Cria e gerencia toda a interface no CoreGui (funciona em qualquer executor)
+-- Cria a interface fullscreen com loading e UI principal, usando ícones personalizados.
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,8 +9,9 @@ local RunService = game:GetService("RunService")
 
 local UI = {}
 
--- Tema de cores moderno
+-- Tema visual
 local THEME = {
+    Overlay    = Color3.fromRGB(0, 0, 0),      -- fundo escuro semi-transparente
     CardBg     = Color3.fromRGB(28, 30, 36),
     Accent     = Color3.fromRGB(100, 108, 255),
     Text       = Color3.fromRGB(240, 242, 245),
@@ -18,14 +20,28 @@ local THEME = {
     ProgressBg = Color3.fromRGB(45, 47, 52),
 }
 
--- Constrói toda a interface (loading + main)
+-- Ícones fornecidos (substitua pelos IDs da sua tabela completa)
+local ICONS = {
+    Level = "rbxassetid://121308741910400",    -- chart-line
+    Gems  = "rbxassetid://119885288633197",    -- gem
+    Money = "rbxassetid://102739438416112",    -- dollar-sign
+}
+
+-- Constrói toda a interface (fullscreen)
 function UI:Build()
-    -- Criar ScreenGui
     local gui = Instance.new("ScreenGui")
     gui.Name = "FlokKaitunUI"
     gui.ResetOnSpawn = false
     gui.IgnoreGuiInset = true
     gui.Parent = CoreGui
+
+    -- Overlay para escurecer o fundo
+    local overlay = Instance.new("Frame")
+    overlay.Size = UDim2.new(1, 0, 1, 0)
+    overlay.BackgroundColor3 = THEME.Overlay
+    overlay.BackgroundTransparency = 0.6
+    overlay.BorderSizePixel = 0
+    overlay.Parent = gui
 
     -- Canvas de loading (fade)
     local loadingCanvas = Instance.new("CanvasGroup")
@@ -43,17 +59,16 @@ function UI:Build()
     mainCanvas.GroupTransparency = 1
     mainCanvas.Parent = gui
 
-    -- Construir os elementos visuais
     self:BuildLoadingScreen(loadingCanvas)
     self:BuildMainUI(mainCanvas)
 
-    -- Armazenar referências
     self.gui = gui
     self.loadingCanvas = loadingCanvas
     self.mainCanvas = mainCanvas
+    self.overlay = overlay
 end
 
--- Tela de loading com barra de progresso animada
+-- Tela de loading (centralizada, não ocupa a tela inteira)
 function UI:BuildLoadingScreen(parent)
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 420, 0, 240)
@@ -64,7 +79,6 @@ function UI:BuildLoadingScreen(parent)
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
     frame.Parent = parent
 
-    -- Título
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -40, 0, 50)
     title.Position = UDim2.new(0, 20, 0, 20)
@@ -76,7 +90,6 @@ function UI:BuildLoadingScreen(parent)
     title.TextXAlignment = Enum.TextXAlignment.Center
     title.Parent = frame
 
-    -- Fundo da barra
     local progressBg = Instance.new("Frame")
     progressBg.Size = UDim2.new(0.8, 0, 0, 10)
     progressBg.Position = UDim2.new(0.1, 0, 0.65, 0)
@@ -85,7 +98,6 @@ function UI:BuildLoadingScreen(parent)
     Instance.new("UICorner", progressBg).CornerRadius = UDim.new(1, 0)
     progressBg.Parent = frame
 
-    -- Barra de progresso (será animada)
     local progressFill = Instance.new("Frame")
     progressFill.Size = UDim2.new(0, 0, 1, 0)
     progressFill.BackgroundColor3 = THEME.Progress
@@ -93,7 +105,6 @@ function UI:BuildLoadingScreen(parent)
     Instance.new("UICorner", progressFill).CornerRadius = UDim.new(1, 0)
     progressFill.Parent = progressBg
 
-    -- Texto percentual
     local percentText = Instance.new("TextLabel")
     percentText.Size = UDim2.new(1, 0, 0, 20)
     percentText.Position = UDim2.new(0, 0, 0.8, 0)
@@ -110,21 +121,19 @@ function UI:BuildLoadingScreen(parent)
     self.loadingFrame = frame
 end
 
--- UI principal com estatísticas
+-- UI principal com stats (fullscreen, card central)
 function UI:BuildMainUI(parent)
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 400, 0, 340)
-    frame.AnchorPoint = Vector2.new(0.5, 0.5)
-    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-    frame.BackgroundColor3 = THEME.CardBg
-    frame.BorderSizePixel = 0
-    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 20)
-    frame.Parent = parent
+    -- Card principal
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(0, 420, 0, 340)
+    card.AnchorPoint = Vector2.new(0.5, 0.5)
+    card.Position = UDim2.new(0.5, 0, 0.5, 0)
+    card.BackgroundColor3 = THEME.CardBg
+    card.BorderSizePixel = 0
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 20)
+    Instance.new("UIShadow", card)
+    card.Parent = parent
 
-    -- Sombra
-    Instance.new("UIShadow", frame)
-
-    -- Título principal
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, 0, 0, 60)
     title.Position = UDim2.new(0, 0, 0, 0)
@@ -133,54 +142,49 @@ function UI:BuildMainUI(parent)
     title.TextColor3 = THEME.Text
     title.TextSize = 28
     title.Font = Enum.Font.GothamBold
-    title.Parent = frame
+    title.Parent = card
 
-    -- Linha decorativa
     local line = Instance.new("Frame")
     line.Size = UDim2.new(0.9, 0, 0, 2)
     line.Position = UDim2.new(0.05, 0, 0, 65)
     line.BackgroundColor3 = THEME.Accent
     line.BorderSizePixel = 0
     Instance.new("UICorner", line).CornerRadius = UDim.new(1, 0)
-    line.Parent = frame
+    line.Parent = card
 
-    -- Container das stats
     local statsContainer = Instance.new("Frame")
-    statsContainer.Size = UDim2.new(1, -40, 0, 160)
+    statsContainer.Size = UDim2.new(1, -40, 0, 180)
     statsContainer.Position = UDim2.new(0, 20, 0, 85)
     statsContainer.BackgroundTransparency = 1
-    statsContainer.Parent = frame
+    statsContainer.Parent = card
 
     local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 20)
+    layout.Padding = UDim.new(0, 24)
     layout.FillDirection = Enum.FillDirection.Vertical
     layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     layout.Parent = statsContainer
 
-    -- Função para criar uma linha de stat
-    local function createStatRow(icon, labelText, initialValue)
+    -- Função para criar linha com ícone customizado
+    local function createStatRow(iconAsset, labelText, initialValue)
         local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 50)
+        row.Size = UDim2.new(1, 0, 0, 52)
         row.BackgroundTransparency = 1
         row.Parent = statsContainer
 
-        local iconLabel = Instance.new("TextLabel")
-        iconLabel.Text = icon
-        iconLabel.TextColor3 = THEME.Accent
-        iconLabel.TextSize = 32
-        iconLabel.Font = Enum.Font.GothamBold
-        iconLabel.Size = UDim2.new(0, 50, 1, 0)
-        iconLabel.BackgroundTransparency = 1
-        iconLabel.TextXAlignment = Enum.TextXAlignment.Left
-        iconLabel.Parent = row
+        local iconImage = Instance.new("ImageLabel")
+        iconImage.Image = iconAsset
+        iconImage.Size = UDim2.new(0, 36, 0, 36)
+        iconImage.Position = UDim2.new(0, 0, 0.5, -18)
+        iconImage.BackgroundTransparency = 1
+        iconImage.Parent = row
 
         local descLabel = Instance.new("TextLabel")
         descLabel.Text = labelText .. ":"
         descLabel.TextColor3 = THEME.TextDim
         descLabel.TextSize = 18
         descLabel.Font = Enum.Font.Gotham
-        descLabel.Size = UDim2.new(0, 100, 1, 0)
-        descLabel.Position = UDim2.new(0, 55, 0, 0)
+        descLabel.Size = UDim2.new(0, 110, 1, 0)
+        descLabel.Position = UDim2.new(0, 50, 0, 0)
         descLabel.BackgroundTransparency = 1
         descLabel.TextXAlignment = Enum.TextXAlignment.Left
         descLabel.Parent = row
@@ -190,8 +194,8 @@ function UI:BuildMainUI(parent)
         valueLabel.TextColor3 = THEME.Text
         valueLabel.TextSize = 24
         valueLabel.Font = Enum.Font.GothamBold
-        valueLabel.Size = UDim2.new(1, -170, 1, 0)
-        valueLabel.Position = UDim2.new(0, 160, 0, 0)
+        valueLabel.Size = UDim2.new(1, -180, 1, 0)
+        valueLabel.Position = UDim2.new(0, 170, 0, 0)
         valueLabel.BackgroundTransparency = 1
         valueLabel.TextXAlignment = Enum.TextXAlignment.Right
         valueLabel.Parent = row
@@ -199,11 +203,10 @@ function UI:BuildMainUI(parent)
         return valueLabel
     end
 
-    self.levelLabel = createStatRow("📊", "Level", 0)
-    self.gemsLabel  = createStatRow("💎", "Gems", 0)
-    self.moneyLabel = createStatRow("💰", "Money", 0)
+    self.levelLabel = createStatRow(ICONS.Level, "Level", 0)
+    self.gemsLabel  = createStatRow(ICONS.Gems,  "Gems",  0)
+    self.moneyLabel = createStatRow(ICONS.Money, "Money", 0)
 
-    -- Rodapé
     local footer = Instance.new("TextLabel")
     footer.Text = "© Flok Kaitun System"
     footer.TextColor3 = THEME.TextDim
@@ -213,58 +216,54 @@ function UI:BuildMainUI(parent)
     footer.Position = UDim2.new(0, 0, 1, -30)
     footer.BackgroundTransparency = 1
     footer.TextXAlignment = Enum.TextXAlignment.Center
-    footer.Parent = frame
+    footer.Parent = card
 
-    -- Sistema de arrastar a janela (custom)
+    -- Sistema de arrastar a janela
     local dragging, dragInput, dragStart, startPos
     local UIScale = Instance.new("UIScale")
-    UIScale.Parent = frame
+    UIScale.Parent = card
 
     local function updateScale()
         local vp = workspace.CurrentCamera.ViewportSize
         local scale = math.min(vp.X / 1920, vp.Y / 1080) * 1.2
-        UIScale.Scale = math.clamp(scale, 0.6, 1.2)
+        UIScale.Scale = math.clamp(scale, 0.6, 1.3)
         if not dragging then
-            frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            card.Position = UDim2.new(0.5, 0, 0.5, 0)
         end
     end
     updateScale()
     workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
-    frame.InputBegan:Connect(function(input)
+    card.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             dragStart = input.Position
-            startPos = frame.Position
+            startPos = card.Position
         end
     end)
-    frame.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
+    card.InputEnded:Connect(function()
+        dragging = false
     end)
     UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
             local delta = input.Position - dragStart
             local scale = UIScale.Scale
-            frame.Position = UDim2.new(
+            card.Position = UDim2.new(
                 startPos.X.Scale, startPos.X.Offset + delta.X / scale,
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y / scale
             )
         end
     end)
 
-    self.mainFrame = frame
+    self.mainCard = card
 end
 
--- Atualiza os valores exibidos
 function UI:UpdateStats(level, gems, money)
     if self.levelLabel then self.levelLabel.Text = tostring(level) end
     if self.gemsLabel  then self.gemsLabel.Text  = tostring(gems)  end
     if self.moneyLabel then self.moneyLabel.Text = tostring(money) end
 end
 
--- Anima a barra de progresso (retorna o tween)
 function UI:StartProgressAnimation(duration)
     if not self.progressFill then return nil end
     local startTime = tick()
@@ -286,7 +285,6 @@ function UI:StartProgressAnimation(duration)
     return tween
 end
 
--- Transição fade do loading para a UI principal
 function UI:FadeToMain()
     local fadeOut = TweenService:Create(self.loadingCanvas, TweenInfo.new(0.6, Enum.EasingStyle.Quad), {GroupTransparency = 1})
     local fadeIn  = TweenService:Create(self.mainCanvas,  TweenInfo.new(0.6, Enum.EasingStyle.Quad), {GroupTransparency = 0})
