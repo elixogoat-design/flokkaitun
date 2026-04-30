@@ -1,8 +1,5 @@
---[[
-    Arquivo: ui.lua
-    Responsabilidade: Criar e manipular todos os elementos visuais da interface.
-    Gerencia tela de carregamento, UI principal, animações e atualização de estatísticas.
-]]
+-- ui.lua
+-- Cria e gerencia toda a interface visual (loading + UI principal)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -10,7 +7,7 @@ local RunService = game:GetService("RunService")
 
 local UI = {}
 
--- Tema visual (cores modernas e arredondadas)
+-- Tema moderno
 local THEME = {
     Background = Color3.fromRGB(18, 20, 24),
     Card       = Color3.fromRGB(28, 30, 36),
@@ -18,19 +15,29 @@ local THEME = {
     Text       = Color3.fromRGB(240, 242, 245),
     TextDim    = Color3.fromRGB(160, 165, 175),
     Progress   = Color3.fromRGB(100, 108, 255),
-    Success    = Color3.fromRGB(76, 175, 80)
 }
 
--- Cria a ScreenGui e todos os containers
+-- Constrói toda a interface (deve ser chamada APÓS o PlayerGui existir)
 function UI:Build()
     local player = Players.LocalPlayer
+    if not player then
+        error("UI:Build() chamado sem LocalPlayer disponível")
+    end
+
+    -- Aguarda o PlayerGui (garantia contra nil)
+    local playerGui = player:WaitForChild("PlayerGui")
+    if not playerGui then
+        error("PlayerGui não encontrado mesmo após aguardar")
+    end
+
+    -- ScreenGui principal
     local gui = Instance.new("ScreenGui")
     gui.Name = "FlokKaitunUI"
-    gui.IgnoreGuiInset = true   -- ignora a área segura (notch)
+    gui.IgnoreGuiInset = true
     gui.ResetOnSpawn = false
-    gui.Parent = player:WaitForChild("PlayerGui")
+    gui.Parent = playerGui  -- Parent seguro
 
-    -- Container da tela de loading (CanvasGroup permite fade suave)
+    -- Container do loading (CanvasGroup para fade)
     local loadingCanvas = Instance.new("CanvasGroup")
     loadingCanvas.Name = "LoadingCanvas"
     loadingCanvas.GroupTransparency = 0
@@ -38,7 +45,7 @@ function UI:Build()
     loadingCanvas.BackgroundTransparency = 1
     loadingCanvas.Parent = gui
 
-    -- Container da UI principal (inicialmente invisível)
+    -- Container da UI principal
     local mainCanvas = Instance.new("CanvasGroup")
     mainCanvas.Name = "MainCanvas"
     mainCanvas.GroupTransparency = 1
@@ -46,7 +53,7 @@ function UI:Build()
     mainCanvas.BackgroundTransparency = 1
     mainCanvas.Parent = gui
 
-    -- Constrói os elementos internos
+    -- Constroi os elementos internos
     self:BuildLoadingScreen(loadingCanvas)
     self:BuildMainUI(mainCanvas)
 
@@ -54,16 +61,12 @@ function UI:Build()
     self.loadingCanvas = loadingCanvas
     self.mainCanvas = mainCanvas
     self.gui = gui
-
-    -- Referências dos labels que exibem os stats
-    self.levelLabel = nil
-    self.gemsLabel  = nil
-    self.moneyLabel = nil
-    self.progressFill = nil
 end
 
--- Tela de carregamento elegante com barra de progresso
+-- Tela de loading com barra de progresso
 function UI:BuildLoadingScreen(parent)
+    if not parent then return end
+
     local centerFrame = Instance.new("Frame")
     centerFrame.Name = "CenterFrame"
     centerFrame.Size = UDim2.new(0, 420, 0, 220)
@@ -76,7 +79,7 @@ function UI:BuildLoadingScreen(parent)
     corner.CornerRadius = UDim.new(0, 16)
     corner.Parent = centerFrame
 
-    -- Sombra sutil
+    -- Sombra (opcional, apenas se disponível)
     local shadow = Instance.new("UIShadow")
     shadow.Parent = centerFrame
 
@@ -94,7 +97,7 @@ function UI:BuildLoadingScreen(parent)
     title.TextXAlignment = Enum.TextXAlignment.Center
     title.Parent = centerFrame
 
-    -- Fundo da barra de progresso
+    -- Fundo da barra
     local progressBg = Instance.new("Frame")
     progressBg.Size = UDim2.new(0.8, 0, 0, 10)
     progressBg.Position = UDim2.new(0.1, 0, 0.7, 0)
@@ -106,7 +109,7 @@ function UI:BuildLoadingScreen(parent)
     bgCorner.Parent = progressBg
     progressBg.Parent = centerFrame
 
-    -- Barra de progresso animada
+    -- Barra de progresso (animada)
     local progressFill = Instance.new("Frame")
     progressFill.Size = UDim2.new(0, 0, 1, 0)
     progressFill.BackgroundColor3 = THEME.Progress
@@ -117,7 +120,7 @@ function UI:BuildLoadingScreen(parent)
     fillCorner.Parent = progressFill
     progressFill.Parent = progressBg
 
-    -- Texto percentual opcional (estético)
+    -- Texto percentual
     local percentText = Instance.new("TextLabel")
     percentText.Name = "PercentText"
     percentText.Text = "0%"
@@ -134,9 +137,10 @@ function UI:BuildLoadingScreen(parent)
     self.percentText = percentText
 end
 
--- UI principal com estatísticas do jogador
+-- UI principal (stats do jogador)
 function UI:BuildMainUI(parent)
-    -- Card central
+    if not parent then return end
+
     local card = Instance.new("Frame")
     card.Size = UDim2.new(0, 400, 0, 320)
     card.Position = UDim2.new(0.5, -200, 0.5, -160)
@@ -153,7 +157,7 @@ function UI:BuildMainUI(parent)
 
     card.Parent = parent
 
-    -- Título principal
+    -- Título
     local title = Instance.new("TextLabel")
     title.Text = "Flok Kaitun"
     title.TextColor3 = THEME.Text
@@ -164,7 +168,7 @@ function UI:BuildMainUI(parent)
     title.BackgroundTransparency = 1
     title.Parent = card
 
-    -- Linha separadora
+    -- Linha decorativa
     local line = Instance.new("Frame")
     line.Size = UDim2.new(0.9, 0, 0, 2)
     line.Position = UDim2.new(0.05, 0, 0, 70)
@@ -175,7 +179,7 @@ function UI:BuildMainUI(parent)
     lineCorner.Parent = line
     line.Parent = card
 
-    -- Container das estatísticas
+    -- Container dos stats
     local statsContainer = Instance.new("Frame")
     statsContainer.Size = UDim2.new(1, -40, 0, 160)
     statsContainer.Position = UDim2.new(0, 20, 0, 90)
@@ -189,14 +193,13 @@ function UI:BuildMainUI(parent)
     layout.VerticalAlignment = Enum.VerticalAlignment.Top
     layout.Parent = statsContainer
 
-    -- Função auxiliar para criar uma linha de estatística
+    -- Função interna para criar uma linha de stat
     local function createStatRow(icon, labelText, initialValue)
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, 0, 0, 50)
         row.BackgroundTransparency = 1
         row.Parent = statsContainer
 
-        -- Ícone
         local iconLabel = Instance.new("TextLabel")
         iconLabel.Text = icon
         iconLabel.TextColor3 = THEME.Accent
@@ -207,7 +210,6 @@ function UI:BuildMainUI(parent)
         iconLabel.TextXAlignment = Enum.TextXAlignment.Left
         iconLabel.Parent = row
 
-        -- Texto descritivo
         local descLabel = Instance.new("TextLabel")
         descLabel.Text = labelText .. ":"
         descLabel.TextColor3 = THEME.TextDim
@@ -219,7 +221,6 @@ function UI:BuildMainUI(parent)
         descLabel.TextXAlignment = Enum.TextXAlignment.Left
         descLabel.Parent = row
 
-        -- Valor dinâmico
         local valueLabel = Instance.new("TextLabel")
         valueLabel.Text = tostring(initialValue)
         valueLabel.TextColor3 = THEME.Text
@@ -234,12 +235,11 @@ function UI:BuildMainUI(parent)
         return valueLabel
     end
 
-    -- Criar as linhas e guardar referências
     self.levelLabel = createStatRow("📊", "Level", 0)
     self.gemsLabel  = createStatRow("💎", "Gems", 0)
     self.moneyLabel = createStatRow("💰", "Money", 0)
 
-    -- Rodapé decorativo
+    -- Rodapé
     local footer = Instance.new("TextLabel")
     footer.Text = "© Flok Kaitun System"
     footer.TextColor3 = THEME.TextDim
@@ -259,19 +259,19 @@ function UI:UpdateStats(level, gems, money)
     if self.moneyLabel then self.moneyLabel.Text = tostring(money) end
 end
 
--- Anima a barra de progresso e o texto percentual
+-- Anima a barra de progresso (retorna o tween)
 function UI:StartProgressAnimation(duration)
+    if not self.progressFill then return nil end
     local startTime = tick()
     local fill = self.progressFill
     local percentText = self.percentText
 
-    -- Tween da barra
     local targetSize = UDim2.new(1, 0, 1, 0)
     local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
     local tween = TweenService:Create(fill, tweenInfo, {Size = targetSize})
     tween:Play()
 
-    -- Atualiza o percentual a cada frame (suave)
+    -- Atualiza o texto percentual a cada frame
     local connection
     connection = RunService.RenderStepped:Connect(function()
         if not fill or not fill.Parent then
@@ -283,17 +283,17 @@ function UI:StartProgressAnimation(duration)
         if percentText then
             percentText.Text = string.format("%.0f%%", percent)
         end
-        if elapsed >= duration then
-            if connection then connection:Disconnect() end
-            if percentText then percentText.Text = "100%" end
+        if elapsed >= duration and connection then
+            connection:Disconnect()
         end
     end)
 
     return tween
 end
 
--- Transição fade-out do loading e fade-in da UI principal
+-- Transição suave do loading para a UI principal
 function UI:FadeToMain()
+    if not self.loadingCanvas or not self.mainCanvas then return end
     local fadeOut = TweenService:Create(self.loadingCanvas, TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {GroupTransparency = 1})
     local fadeIn  = TweenService:Create(self.mainCanvas,  TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {GroupTransparency = 0})
 
@@ -301,8 +301,10 @@ function UI:FadeToMain()
     fadeIn:Play()
 
     fadeOut.Completed:Connect(function()
-        self.loadingCanvas.Visible = false
-        self.loadingCanvas:Destroy() -- libera memória
+        if self.loadingCanvas then
+            self.loadingCanvas.Visible = false
+            self.loadingCanvas:Destroy()
+        end
     end)
 end
 
