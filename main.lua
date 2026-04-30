@@ -1,67 +1,48 @@
--- main.lua
--- Inicializa o sistema, aguarda dados e controla a transição
+-- main.lua - execução via executor (exploit)
+local UI = require(script.Parent.ui)   -- ajuste o caminho conforme necessário
+local Remotes = require(script.Parent.remotes)
 
-local Players = game:GetService("Players")
-
--- Carrega os módulos (caminho relativo: mesmo nível da pasta Modules)
-local UI = require(script.Parent.Modules.ui)
-local Remotes = require(script.Parent.Modules.remotes) -- não usado agora
-
-local player = Players.LocalPlayer
-if not player then
-    player = Players:WaitForChild("LocalPlayer")
-end
-
--- Constrói a UI (seguro, aguarda PlayerGui internamente)
 UI:Build()
 
--- Aguarda a pasta de dados do jogador
-local dataFolder = player:WaitForChild("Data")
-local levelValue = dataFolder:WaitForChild("Level")
-local gemsValue  = dataFolder:WaitForChild("Gems")
-local moneyValue = dataFolder:WaitForChild("Money")
+-- Simulação de dados do jogador (já que você não tem acesso ao Data do jogo)
+local playerStats = {
+    Level = 1,
+    Gems = 100,
+    Money = 500
+}
 
--- Função que atualiza todos os stats na UI
-local function updateAllStats()
-    UI:UpdateStats(levelValue.Value, gemsValue.Value, moneyValue.Value)
+-- Atualiza a UI com os dados atuais
+local function updateUI()
+    UI:UpdateStats(playerStats.Level, playerStats.Gems, playerStats.Money)
 end
 
--- Conecta eventos para atualização em tempo real (live)
-local levelConn = levelValue.Changed:Connect(updateAllStats)
-local gemsConn  = gemsValue.Changed:Connect(updateAllStats)
-local moneyConn = moneyValue.Changed:Connect(updateAllStats)
+-- Opcional: simular mudanças automáticas a cada 5 segundos
+-- (comente se não quiser)
+local autoChange = true
+if autoChange then
+    spawn(function()
+        while wait(5) do
+            playerStats.Level = playerStats.Level + 1
+            playerStats.Gems = playerStats.Gems + 50
+            playerStats.Money = playerStats.Money + 200
+            updateUI()
+        end
+    end)
+end
 
--- Exibe os valores iniciais
-updateAllStats()
+-- Inicia loading e transição
+local progressTween = UI:StartProgressAnimation(2.5)
+updateUI()
 
--- ========== SEQUÊNCIA DE LOADING ==========
-local LOADING_DURATION = 2.5 -- segundos
-
-local progressTween = UI:StartProgressAnimation(LOADING_DURATION)
-
-local function finishLoading()
+local function finish()
     UI:FadeToMain()
-    if progressTween then
-        progressTween.Completed:Wait() -- pequena sincronia opcional
-    end
 end
 
 if progressTween then
-    progressTween.Completed:Connect(finishLoading)
+    progressTween.Completed:Connect(finish)
 else
-    -- Fallback se a animação falhar
-    task.wait(LOADING_DURATION)
-    finishLoading()
+    task.wait(2.5)
+    finish()
 end
 
--- Limpeza das conexões quando o player sair
-player.AncestryChanged:Connect(function()
-    if not player.Parent then
-        levelConn:Disconnect()
-        gemsConn:Disconnect()
-        moneyConn:Disconnect()
-        if progressTween then progressTween:Cancel() end
-    end
-end)
-
-print("Flok Kaitun UI inicializado com sucesso!")
+print("Flok Kaitun carregado para executor!")
